@@ -55,12 +55,9 @@ export default function RegisterPage() {
     <main
       dir={lang === "ar" ? "rtl" : "ltr"}
       className="relative flex min-h-screen flex-col items-center justify-center px-4 py-12 overflow-hidden"
-      style={{ background: "linear-gradient(135deg, var(--c-body-gradient-from) 0%, var(--c-body-gradient-to) 100%)" }}
     >
       {/* Background overlay */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-surface-container-lowest/80 to-surface-container/90 mix-blend-multiply" />
-      </div>
+      <div className="absolute inset-0 z-0 bg-surface" />
 
       <div className="relative z-10 w-full max-w-[460px] px-container-padding">
         <div className="app-card rounded-xl p-6 shadow-2xl flex flex-col gap-4">
@@ -206,13 +203,14 @@ export default function RegisterPage() {
 
             {/* Action */}
             <button
-              className="mt-2 rounded py-3 px-6 w-full text-on-primary font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all hover:shadow-[inset_0_0_10px_rgba(255,255,255,0.3)]"
+              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--c-primary)] py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_-4px_rgba(30,63,145,0.4)] transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               type="submit"
               disabled={submitting}
-              style={{ background: "linear-gradient(135deg, var(--c-primary-container) 0%, var(--c-primary-fixed-variant) 100%)" }}
             >
               {submitting ? t("register.submitting") : t("register.submit")}
-              <span className="material-symbols-outlined text-sm rtl:-scale-x-100">arrow_forward</span>
+              <span className="material-symbols-outlined text-lg transition-transform duration-200 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:-scale-x-100">
+                arrow_forward
+              </span>
             </button>
           </form>
 

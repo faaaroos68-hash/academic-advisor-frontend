@@ -54,14 +54,7 @@ export default function LoginPage() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: "url('/images/campus-archway.jpg')" }}
         />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: theme === "dark"
-              ? "linear-gradient(180deg, rgba(10,15,24,0.70) 0%, rgba(10,15,24,0.50) 45%, rgba(10,15,24,0.80) 100%)"
-              : "linear-gradient(180deg, rgba(240,244,248,0.30) 0%, rgba(240,244,248,0.60) 45%, rgba(240,244,248,0.80) 100%)",
-          }}
-        />
+        <div className="absolute inset-0 bg-background/70" />
       </div>
 
       {/* Language + Theme toggles */}
@@ -120,7 +113,7 @@ export default function LoginPage() {
           </div>
 
           {registered && (
-            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            <div className="mb-4 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-success">
               Account created successfully — please sign in.
             </div>
           )}
@@ -128,7 +121,7 @@ export default function LoginPage() {
           {error && (
             <div
               role="alert"
-              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              className="mb-4 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger"
             >
               {error}
             </div>

@@ -45,6 +45,18 @@ function isMutating(method: string): boolean {
   return MUTATING.has(method.toUpperCase());
 }
 
+function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit & { timeout?: number } = {},
+): Promise<Response> {
+  const { timeout = 15000, ...fetchInit } = init;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  return fetch(input, { ...fetchInit, signal: controller.signal }).finally(() =>
+    clearTimeout(id),
+  );
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
 
@@ -57,11 +69,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   const doFetch = () =>
-    fetch(path, {
+    fetchWithTimeout(path, {
       credentials: "include",
       ...init,
       method,
       headers,
+      timeout: 20000,
     });
 
   let res = await doFetch();
