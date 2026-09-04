@@ -1,142 +1,201 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import PageShell from "@/components/PageShell";
-import { del, get, postForm, postJson } from "@/lib/api";
-import type {
-  AvailableCourse,
-  ExtractedEntry,
-  HistoryEntry,
-  TranscriptExtraction,
-} from "@/lib/types";
-import { dirFor } from "@/lib/rtl";
+import { useEffect, useState } from "react";
+import { get, postJson, postForm, del } from "@/lib/api";
 
-const GRADES = [
-  "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "F", "FF",
-];
-const SPECIAL_GRADES = ["W", "FW", "AU", "S", "US", "I", "PASS"];
+// Shapes mirror the backend responses exactly:
+// GET/POST /api/student/course-history rows come from StudentService.get_history().
+type HistoryEntry = {
+  entry_id: number;
+  course_code: string;
+  course_name: string | null;
+  grade: string;
+  semester_taken: string;
+  credit_hours: number | null;
+};
 
-interface AddHistoryResult {
-  message: string;
-  inserted: number;
-  skipped: { course_code: string; reason: string }[];
-  code_conflicts: { course_code: string; message: string }[];
-  needs_review: { course_code: string; message: string }[];
-  updated_gpa: number;
-  updated_total_hours: number;
-  updated_level: number;
-}
+// GET /api/student/available-courses returns a bare array of catalog courses.
+type CatalogCourse = {
+  code: string;
+  name: string;
+  credit_hours: number;
+};
 
-function formatAddResult(r: AddHistoryResult): string {
-  const parts = [
-    `${r.inserted} added (GPA ${r.updated_gpa}, ${r.updated_total_hours} hrs, level ${r.updated_level})`,
-  ];
-  if (r.skipped.length)
-    parts.push(
-      `Skipped: ${r.skipped.map((s) => `${s.course_code} (${s.reason})`).join(", ")}`
-    );
-  if (r.code_conflicts.length)
-    parts.push(
-      `Conflicts: ${r.code_conflicts.map((c) => c.message).join("; ")}`
-    );
-  if (r.needs_review.length)
-    parts.push(
-      `Review: ${r.needs_review.map((n) => n.message).join("; ")}`
-    );
-  return parts.join(" | ");
+// upload-image returns ImageService.extract_transcript() at the top level.
+type ExtractedEntry = {
+  course_code: string;
+  course_name?: string | null;
+  grade: string;
+  semester_taken?: string | null;
+  recognized?: boolean;
+  was_corrected?: boolean;
+};
+
+type TranscriptExtraction = {
+  model_used?: string;
+  entries: ExtractedEntry[];
+};
+
+const GRADES: Record<string, number> = {
+  "A+": 4.0,
+  "A": 4.0,
+  "A-": 3.7,
+  "B+": 3.3,
+  "B": 3.0,
+  "B-": 2.7,
+  "C+": 2.3,
+  "C": 2.0,
+  "C-": 1.7,
+  "D+": 1.3,
+  "D": 1.0,
+  "F": 0.0,
+};
+
+function pointsFor(grade: string): number | undefined {
+  return GRADES[grade];
 }
 
 export default function HistoryPage() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [courses, setCourses] = useState<AvailableCourse[]>([]);
+  const [courses, setCourses] = useState<CatalogCourse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
   const [code, setCode] = useState("");
-  const [grade, setGrade] = useState("B");
+  const [grade, setGrade] = useState("A");
   const [semester, setSemester] = useState("");
-
   const [file, setFile] = useState<File | null>(null);
   const [extraction, setExtraction] = useState<TranscriptExtraction | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const load = useCallback(async () => {
+  // Backend returns BARE ARRAYS for both GETs — no {ok}/{entries}/{courses} wrapper.
+  async function load() {
     setLoading(true);
     try {
-      const [h, c] = await Promise.all([
+      const [hist, crs] = await Promise.all([
         get<HistoryEntry[]>("/api/student/course-history"),
-        get<AvailableCourse[]>("/api/student/available-courses"),
+        get<CatalogCourse[]>("/api/student/available-courses"),
       ]);
-      setEntries(h);
-      setCourses(c);
+      setEntries(hist);
+      setCourses(crs);
     } catch (e) {
-      setResult({
-        kind: "err",
-        text: e instanceof Error ? e.message : "Failed to load history",
-      });
+      setResult(e instanceof Error ? e.message : "Failed to load transcript");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, []);
 
-  async function addEntry(e: FormEvent) {
-    e.preventDefault();
-    if (!code || !grade) return;
+  // Extraction entries carry no credit hours — the backend resolves them from
+  // the catalog at confirm time. Preview math uses the same catalog mapping.
+  function summarize(list: ExtractedEntry[]) {
+    const hoursByCode = new Map(courses.map((c) => [c.code, c.credit_hours]));
+    let creditsEarned = 0;
+    let totalPoints = 0;
+    let gpaCredits = 0;
+    for (const e of list) {
+      const hrs = hoursByCode.get(e.course_code) ?? 0;
+      const pts = pointsFor(e.grade);
+      if (!["I", "W", "AU", "P", "NP"].includes(e.grade)) creditsEarned += hrs;
+      if (pts !== undefined) {
+        totalPoints += pts * hrs;
+        gpaCredits += hrs;
+      }
+    }
+    return {
+      cgpa: gpaCredits ? totalPoints / gpaCredits : 0,
+      creditsEarned,
+      totalPoints,
+    };
+  }
+
+  const cgpa = (() => {
+    const valid = entries.filter((e) => pointsFor(e.grade) !== undefined);
+    const totalPoints = valid.reduce(
+      (s, e) => s + pointsFor(e.grade)! * (e.credit_hours ?? 0),
+      0
+    );
+    const totalCredits = valid.reduce((s, e) => s + (e.credit_hours ?? 0), 0);
+    return totalCredits ? totalPoints / totalCredits : 0;
+  })();
+
+  const creditsEarned = entries.reduce((s, e) => s + (e.credit_hours ?? 0), 0);
+  const creditsRequired = 130;
+
+  const terms = Array.from(new Set(entries.map((e) => e.semester_taken))).sort();
+
+  const groupedByTerm: Record<string, HistoryEntry[]> = {};
+  for (const t of terms) {
+    groupedByTerm[t] = entries.filter((e) => e.semester_taken === t);
+  }
+
+  // Backend POST /course-history expects {entries: [...]} and answers
+  // {message, inserted, skipped, code_conflicts, needs_review, updated_*}.
+  async function addEntry() {
+    if (!code || !semester) return;
     setBusy(true);
     setResult(null);
     try {
-      const r = await postJson<AddHistoryResult>("/api/student/course-history", {
-        entries: [{ course_code: code, grade, semester_taken: semester || "General" }],
+      const data = await postJson<{
+        message: string;
+        inserted: number;
+        skipped: { course_code: string; reason: string }[];
+        code_conflicts: unknown[];
+        updated_gpa: number;
+        updated_total_hours: number;
+      }>("/api/student/course-history", {
+        entries: [{ course_code: code, grade, semester_taken: semester }],
       });
-      setResult({ kind: "ok", text: formatAddResult(r) });
-      setCode("");
-      setSemester("");
-      await load();
-    } catch (err) {
-      setResult({ kind: "err", text: err instanceof Error ? err.message : "Add failed" });
+
+      if (data.inserted > 0) {
+        const bits = [`Added ${code} (${grade})`];
+        if (data.skipped?.length) {
+          bits.push(`skipped ${data.skipped.length}`);
+        }
+        if (typeof data.updated_gpa === "number") {
+          bits.push(`GPA now ${data.updated_gpa.toFixed(2)} · ${data.updated_total_hours} hrs`);
+        }
+        setResult(bits.join(" · "));
+        setCode("");
+        setGrade("A");
+        setSemester("");
+        await load();
+      } else if (data.skipped?.length) {
+        setResult(data.skipped.map((s) => `${s.course_code}: ${s.reason}`).join("; "));
+      } else {
+        setResult(data.message ?? "Nothing added");
+      }
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Network error");
     } finally {
       setBusy(false);
     }
   }
 
-  async function deleteEntry(id: number) {
+  async function deleteEntry(entryId: number) {
     if (!confirm("Delete this entry?")) return;
     setBusy(true);
     try {
-      const r = await del<{ message: string; updated_gpa: number; updated_total_hours: number }>(
-        `/api/student/course-history/${id}`
-      );
-      setResult({
-        kind: "ok",
-        text: `${r.message} (GPA ${r.updated_gpa}, ${r.updated_total_hours} hrs)`,
-      });
+      await del(`/api/student/course-history/${entryId}`);
       await load();
-    } catch (err) {
-      setResult({ kind: "err", text: err instanceof Error ? err.message : "Delete failed" });
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setBusy(false);
     }
   }
 
-  function pickFile(f: File | undefined) {
-    if (!f) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
-      setResult({ kind: "err", text: "Only JPG, PNG or WEBP images are supported." });
-      return;
-    }
-    if (f.size > 10 * 1024 * 1024) {
-      setResult({ kind: "err", text: "Image must be under 10MB." });
-      return;
-    }
+  function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
     setFile(f);
     setExtraction(null);
   }
 
+  // upload-image answers top-level {extracted_entries, raw_model_output, model_used}
+  // on success, or {error, message?} with a non-200 status on failure.
   async function extract() {
     if (!file) return;
     setUploading(true);
@@ -144,284 +203,316 @@ export default function HistoryPage() {
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const r = await postForm<TranscriptExtraction>(
-        "/api/student/course-history/upload-image",
-        fd
-      );
-      setExtraction(r);
-    } catch (err) {
-      setResult({ kind: "err", text: err instanceof Error ? err.message : "Extraction failed" });
+      const data = await postForm<{
+        extracted_entries?: ExtractedEntry[];
+        raw_model_output?: string;
+        model_used?: string;
+        error?: string;
+        message?: string;
+      }>("/api/student/course-history/upload-image", fd);
+
+      if (data.extracted_entries && data.extracted_entries.length > 0) {
+        setExtraction({ entries: data.extracted_entries, model_used: data.model_used });
+      } else if (data.error || data.message) {
+        setResult(data.message ?? data.error ?? "Extraction failed");
+      } else {
+        setResult("No courses were detected in that image.");
+      }
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }
   }
 
+  // confirm expects {entries: [...]} built from the extracted entries.
   async function confirmExtracted() {
     if (!extraction) return;
     setBusy(true);
-    setResult(null);
     try {
-      const entriesPayload = extraction.extracted_entries.map((e: ExtractedEntry) => ({
-        course_code: e.course_code,
-        grade: e.grade || "B",
-        semester_taken: e.semester_taken || "General",
-      }));
-      const r = await postJson<AddHistoryResult>("/api/student/course-history/confirm", {
-        entries: entriesPayload,
-      });
-      setResult({ kind: "ok", text: formatAddResult(r) });
+      const data = await postJson<{
+        message: string;
+        inserted: number;
+        skipped: { course_code: string; reason: string }[];
+      }>(
+        "/api/student/course-history/confirm",
+        {
+          entries: extraction.entries.map((e) => ({
+            course_code: e.course_code,
+            grade: e.grade,
+            semester_taken: e.semester_taken ?? "",
+          })),
+        }
+      );
       setExtraction(null);
       setFile(null);
       await load();
-    } catch (err) {
-      setResult({ kind: "err", text: err instanceof Error ? err.message : "Confirm failed" });
+      setResult(
+        data.inserted > 0
+          ? `Transcript imported — ${data.inserted} added` +
+              (data.skipped?.length ? `, ${data.skipped.length} skipped` : "")
+          : `Nothing imported — ${data.skipped?.length ?? 0} skipped` +
+              (data.skipped?.length
+                ? ` (${data.skipped
+                    .slice(0, 3)
+                    .map((s) => `${s.course_code}: ${s.reason}`)
+                    .join("; ")})`
+                : "")
+      );
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Confirm failed");
     } finally {
       setBusy(false);
     }
   }
 
+  const termGpaMap: Record<string, number> = {};
+  for (const t of terms) {
+    const list = groupedByTerm[t];
+    const valid = list.filter((e) => pointsFor(e.grade) !== undefined);
+    const tp = valid.reduce((s, e) => s + pointsFor(e.grade)! * (e.credit_hours ?? 0), 0);
+    const tc = valid.reduce((s, e) => s + (e.credit_hours ?? 0), 0);
+    termGpaMap[t] = tc ? tp / tc : 0;
+  }
+
+  const [openTerms, setOpenTerms] = useState<Set<string>>(new Set());
+
+  function toggleTerm(t: string) {
+    setOpenTerms((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  }
+
+  const extractionSummary = extraction ? summarize(extraction.entries) : null;
+
   return (
-    <PageShell>
-      <h1 className="mb-6 font-[family-name:var(--font-heading)] text-2xl font-bold text-heading">
-        Course History
-      </h1>
+    <div className="max-w-4xl mx-auto px-4 py-10 page-content">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-on-surface">Academic Transcript</h1>
+        <p className="text-on-surface-variant mt-1">Bachelor of Science in Computer Science</p>
+      </header>
 
-      {result && (
-        <div
-          className={`mb-4 whitespace-pre-wrap rounded-xl border px-4 py-3 text-sm ${
-            result.kind === "ok"
-              ? "border-success/20 bg-success/10 text-success"
-              : "border-danger/20 bg-danger/10 text-danger"
-          }`}
-        >
-          {result.text}
+      {/* CGPA Hero Banner */}
+      <section className="app-card rounded-xl p-8 mb-8 text-center">
+        <div className="text-primary text-[64px] font-bold leading-none">
+          {cgpa.toFixed(2)}
         </div>
-      )}
-
-      <section className="glass-card mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-heading">
-          Upload transcript image
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="cursor-pointer rounded-xl border border-white/10 bg-glass px-4 py-2 text-sm text-body-text transition-colors hover:border-[#75d7cc]/30 hover:text-heading">
-            {file ? file.name : "Choose image…"}
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp"
-              className="hidden"
-              onChange={(e) => pickFile(e.target.files?.[0])}
-            />
-          </label>
-          {file && (
-            <button
-              onClick={extract}
-              disabled={uploading}
-              className="primary-gradient-btn"
-            >
-              {uploading ? "Extracting…" : "Extract courses"}
-            </button>
-          )}
-          {file && (
-            <button
-              onClick={() => {
-                setFile(null);
-                setExtraction(null);
-              }}
-              className="secondary-btn"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {extraction && (
-          <div className="mt-4">
-            {extraction.preprocessing_warning && (
-              <p className="mb-2 text-xs text-warning">
-                {extraction.preprocessing_warning}
-              </p>
-            )}
-            <p className="mb-2 text-xs text-caption">
-              Review the extracted entries before confirming. Only recognized
-              courses with valid grades will be added.
-            </p>
-            <div className="overflow-x-auto rounded-xl border border-white/10">
-              <table className="glass-table">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Course</th>
-                    <th>Grade</th>
-                    <th>Semester</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {extraction.extracted_entries.map((e, i) => (
-                    <tr key={i}>
-                      <td className="font-medium text-heading">
-                        {e.course_code}
-                      </td>
-                      <td dir={dirFor(e.course_name ?? "")}>
-                        {e.course_name ?? "—"}
-                      </td>
-                      <td>{e.grade || "—"}</td>
-                      <td>{e.semester_taken ?? "—"}</td>
-                      <td className="text-xs">
-                        {!e.recognized && (
-                          <span className="text-warning">not recognized</span>
-                        )}
-                        {e.was_corrected && (
-                          <span className="text-secondary">corrected</span>
-                        )}
-                        {e.recognized && !e.was_corrected && (
-                          <span className="text-success">ok</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {extraction.extracted_entries.length > 0 && (
-              <button
-                onClick={confirmExtracted}
-                disabled={busy}
-                className="primary-gradient-btn mt-3"
-              >
-                Confirm and add to history
-              </button>
-            )}
+        <div className="text-on-surface-variant text-sm mt-2">Cumulative GPA</div>
+        <div className="flex justify-center gap-8 mt-4 text-on-surface-variant text-sm">
+          <div>
+            <span className="font-semibold">{creditsEarned}</span> credits earned
           </div>
+          <div>
+            <span className="font-semibold">{creditsRequired}</span> credits required
+          </div>
+        </div>
+      </section>
+
+      {/* Transcript Accordions */}
+      <section className="space-y-4 mb-10">
+        {loading ? (
+          <div className="text-center py-12 text-on-surface-variant">Loading…</div>
+        ) : terms.length === 0 ? (
+          <div className="text-center py-12 text-on-surface-variant">
+            No entries yet. Add courses below or upload a transcript image.
+          </div>
+        ) : (
+          terms.map((t) => (
+            <div key={t} className="app-card rounded-xl overflow-hidden">
+              <button onClick={() => toggleTerm(t)} className="w-full flex items-center justify-between p-6 hover:bg-surface-container transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="text-on-surface font-medium">{t}</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">
+                    {termGpaMap[t]?.toFixed(2) ?? "—"} GPA
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-on-surface-variant text-sm">
+                    {groupedByTerm[t].reduce((s, e) => s + (e.credit_hours ?? 0), 0)} credits
+                  </span>
+                  <span className={`material-symbols-outlined accordion-icon text-on-surface-variant ${openTerms.has(t) ? "open" : ""}`}>
+                    expand_more
+                  </span>
+                </div>
+              </button>
+              <div className={`accordion-content ${openTerms.has(t) ? "open" : ""}`}>
+                <div className="px-6 pb-6">
+                  <table className="app-table w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-outline-variant">
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
+                          Course
+                        </th>
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
+                          Title
+                        </th>
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
+                          Credits
+                        </th>
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
+                          Grade
+                        </th>
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
+                          Points
+                        </th>
+                        <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedByTerm[t].map((e) => (
+                        <tr key={e.entry_id} className="border-b border-outline-variant hover:bg-surface-container">
+                          <td className="py-4 px-2 text-on-surface font-medium">{e.course_code}</td>
+                          <td className="py-4 px-2 text-on-surface-variant">{e.course_name ?? "—"}</td>
+                          <td className="py-4 px-2 text-on-surface-variant">{e.credit_hours ?? "—"}</td>
+                          <td className="py-4 px-2">
+                            <span className="text-primary font-medium">{e.grade}</span>
+                          </td>
+                          <td className="py-4 px-2 text-on-surface-variant">
+                            {pointsFor(e.grade) !== undefined && e.credit_hours != null
+                              ? (pointsFor(e.grade)! * e.credit_hours).toFixed(1)
+                              : "—"}
+                          </td>
+                          <td className="py-4 px-2">
+                            <button
+                              onClick={() => deleteEntry(e.entry_id)}
+                              disabled={busy}
+                              className="text-on-surface-variant/60 hover:text-red-400 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </section>
 
-      <section className="glass-card mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-heading">
-          Add a course manually
-        </h2>
-        <form onSubmit={addEntry} className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col">
-            <label htmlFor="code" className="mb-1.5 text-xs font-medium text-caption">
-              Course
-            </label>
-            <select
-              id="code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-              className="glass-select w-48"
-            >
-              <option value="">Select course…</option>
-              {courses.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} — {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col">
-            <label htmlFor="grade" className="mb-1.5 text-xs font-medium text-caption">
-              Grade
-            </label>
-            <select
-              id="grade"
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-              className="glass-select w-24"
-            >
-              {GRADES.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-              <optgroup label="Special">
-                {SPECIAL_GRADES.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-          <div className="flex flex-col">
-            <label htmlFor="semester" className="mb-1.5 text-xs font-medium text-caption">
-              Semester
-            </label>
-            <input
-              id="semester"
-              type="text"
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              placeholder="Fall 2024"
-              className="glass-input w-40"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={busy || !code}
-            className="primary-gradient-btn"
+      {/* Add Course Section */}
+      <section className="app-card rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-on-surface mb-4">Add Course</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <select
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="app-input rounded-lg px-4 py-3"
           >
-            Add
+            <option value="">Select course</option>
+            {courses.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} – {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={grade}
+            onChange={(e) => setGrade(e.target.value)}
+            className="app-input rounded-lg px-4 py-3"
+          >
+            {Object.keys(GRADES).map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+          <input
+            value={semester}
+            onChange={(e) => setSemester(e.target.value)}
+            placeholder="e.g. Fall 2024"
+            className="app-input rounded-lg px-4 py-3 placeholder:text-on-surface-variant/40"
+          />
+          <button
+            onClick={addEntry}
+            disabled={busy || !code || !semester}
+              className="btn-primary font-medium rounded-lg px-6 py-3 disabled:opacity-50 transition-colors"
+          >
+            {busy ? "Adding…" : "Add"}
           </button>
-        </form>
+        </div>
+        {result && (
+          <div className="mt-4 text-sm text-on-surface-variant">{result}</div>
+        )}
       </section>
 
-      <section className="glass-panel overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-          <h2 className="text-sm font-semibold text-heading">History</h2>
-          <span className="text-xs text-caption">
-            {entries.length} course(s) ·{" "}
-            {entries.reduce((s, e) => s + (e.credit_hours ?? 0), 0)} hrs
-          </span>
+      {/* Upload Transcript Section */}
+      <section className="app-card rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-on-surface mb-4">Upload Transcript</h2>
+        <div className="flex items-center gap-4">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={pickFile}
+            className="block w-full text-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary/20 file:text-primary file:font-medium file:cursor-pointer hover:file:bg-primary/30"
+          />
+          <button
+            onClick={extract}
+            disabled={!file || uploading}
+            className="bg-surface-container hover:bg-surface-container font-medium rounded-lg px-6 py-3 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            {uploading ? "Extracting…" : "Extract"}
+          </button>
         </div>
-        {loading ? (
-          <div className="flex items-center gap-2 p-6 text-sm text-caption">
-            <div className="h-4 w-4 animate-pulse rounded-full bg-[#75d7cc]" />
-            Loading…
-          </div>
-        ) : entries.length === 0 ? (
-          <p className="p-6 text-sm text-caption">
-            No courses yet. Add a course above or upload a transcript image.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="glass-table">
+        {extraction && extractionSummary && (
+          <div className="mt-6">
+            <h3 className="text-on-surface-variant text-sm mb-3">Detected Courses</h3>
+            <div className="bg-surface-container rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-3 gap-4 text-sm text-on-surface-variant">
+                <div>
+                  CGPA: <span className="text-primary font-medium">{extractionSummary.cgpa.toFixed(2)}</span>
+                </div>
+                <div>
+                  Credits: <span className="font-medium">{extractionSummary.creditsEarned}</span>
+                </div>
+                <div>
+                  Points: <span className="font-medium">{extractionSummary.totalPoints.toFixed(1)}</span>
+                </div>
+              </div>
+            </div>
+            <table className="app-table w-full text-left border-collapse mb-4">
               <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Course</th>
-                  <th>Grade</th>
-                  <th>Semester</th>
-                  <th>Hours</th>
-                  <th />
+                <tr className="border-b border-outline-variant">
+                  <th className="py-2 px-2 text-[13px] uppercase text-on-surface-variant">Code</th>
+                  <th className="py-2 px-2 text-[13px] uppercase text-on-surface-variant">Title</th>
+                  <th className="py-2 px-2 text-[13px] uppercase text-on-surface-variant">Grade</th>
+                  <th className="py-2 px-2 text-[13px] uppercase text-on-surface-variant">Semester</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((e) => (
-                  <tr key={e.entry_id}>
-                    <td className="font-medium text-heading">{e.course_code}</td>
-                    <td dir={dirFor(e.course_name ?? "")}>
-                      {e.course_name ?? "—"}
+                {extraction.entries.map((e, i) => (
+                  <tr key={i} className="border-b border-outline-variant">
+                    <td className="py-3 px-2 text-on-surface font-medium">
+                      {e.course_code}
+                      {!e.recognized && (
+                        <span className="ml-2 text-xs text-warning">(unrecognized)</span>
+                      )}
                     </td>
-                    <td>{e.grade}</td>
-                    <td>{e.semester_taken}</td>
-                    <td>{e.credit_hours ?? "—"}</td>
-                    <td className="text-right">
-                      <button
-                        onClick={() => deleteEntry(e.entry_id)}
-                        className="text-xs font-medium text-danger/70 hover:text-danger"
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    <td className="py-3 px-2 text-on-surface-variant">{e.course_name ?? "—"}</td>
+                    <td className="py-3 px-2 text-primary">{e.grade}</td>
+                    <td className="py-3 px-2 text-on-surface-variant">{e.semester_taken ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <button
+              onClick={confirmExtracted}
+              disabled={busy}
+            className="btn-primary font-medium rounded-lg px-6 py-3 disabled:opacity-50 transition-colors"
+            >
+              {busy ? "Confirming…" : "Confirm & Import"}
+            </button>
           </div>
         )}
+        {result && !extraction && (
+          <div className="mt-4 text-sm text-on-surface-variant">{result}</div>
+        )}
       </section>
-    </PageShell>
+    </div>
   );
 }

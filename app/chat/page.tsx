@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import PageShell from "@/components/PageShell";
-import { postForm, postJson } from "@/lib/api";
-import type { ChatResponse, CourseIntentResponse } from "@/lib/types";
+import { get, postForm, postJson } from "@/lib/api";
+import type { AvailableCourse, ChatResponse, CourseIntentResponse } from "@/lib/types";
 import { dirFor, isArabic } from "@/lib/rtl";
-import { IconImage, IconSend } from "@/components/Icons";
 
 interface ChatMessage {
   id: number;
@@ -18,10 +17,10 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const QUICK_ACTIONS = [
-  { label: "Eligible courses", msg: "What courses am I eligible to take?" },
-  { label: "Prerequisites", msg: "What are the prerequisites for CS301?" },
-  { label: "Raise my GPA", msg: "How can I raise my GPA?" },
-  { label: "GPA projection", msg: "What will my GPA be if I get an A in CS301?" },
+  { label: "Eligible courses", msg: "What courses am I eligible to take?", icon: "school" },
+  { label: "Prerequisites", msg: "What are the prerequisites for CS301?", icon: "account_tree" },
+  { label: "Raise my GPA", msg: "How can I raise my GPA?", icon: "trending_up" },
+  { label: "GPA projection", msg: "What will my GPA be if I get an A in CS301?", icon: "calculate" },
 ];
 
 function assistantText(data: ChatResponse): string {
@@ -60,13 +59,26 @@ export default function ChatPage() {
   const [fileError, setFileError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(1);
+  // Real catalog codes for this student (same source as the Courses page),
+  // sent as offered_courses so the advisor classifies the actual offerings.
+  const offeredCodesRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    get<AvailableCourse[]>("/api/student/available-courses")
+      .then((courses) => {
+        offeredCodesRef.current = courses.map((c) => c.code);
+      })
+      .catch(() => {
+        offeredCodesRef.current = [];
+      });
+  }, []);
 
   useEffect(() => {
     setMessages([
       {
         id: 0,
         role: "assistant",
-        text: "Hello! Ask me about which courses you're eligible to take, prerequisites, raising your GPA, what-if grade projections, or attach a photo of your transcript.",
+        text: "Good morning. I notice you've completed 75% of your core requirements for the Computer Science track. Based on your current trajectory, you have room for two electives next semester. How can I assist you with your planning today?",
       },
     ]);
   }, []);
@@ -115,9 +127,15 @@ export default function ChatPage() {
         fd.append("message", msg);
         data = await postForm<ChatResponse>("/api/chat", fd);
       } else {
+        // Conversation memory: last 10 turns so follow-ups read naturally.
+        const history = messages
+          .filter((m) => m.text.trim())
+          .slice(-10)
+          .map((m) => ({ role: m.role, content: m.text }));
         data = await postJson<ChatResponse>("/api/chat", {
           message: msg,
-          offered_courses: [],
+          offered_courses: offeredCodesRef.current,
+          history,
         });
       }
       const text = assistantText(data);
@@ -142,111 +160,140 @@ export default function ChatPage() {
 
   return (
     <PageShell>
-      <div className="glass-panel flex h-[75vh] flex-col overflow-hidden">
-        <div className="border-b border-white/5 px-6 py-4">
-          <h1 className="font-[family-name:var(--font-heading)] text-xl font-bold text-heading">
-            AI Advisor
-          </h1>
-          <p className="text-xs text-caption">
-            Ask about courses, prerequisites, or GPA projections
-          </p>
+      <div className="flex h-[75vh] flex-col overflow-hidden -m-6 md:-m-8">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 app-card border-b-0 z-20">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
+            <h1 className="font-[family-name:var(--font-heading)] text-headline-md font-semibold">AI Advisor</h1>
+          </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-6">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              {m.role === "assistant" && isCourseIntent(m.data) ? (
-                <CourseIntentCard data={m.data} />
-              ) : (
-                <div
-                  dir={dirFor(m.text)}
-                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    m.role === "user"
-                      ? "rounded-br-md bg-gradient-to-br from-[#4FB3A9] to-[#2e8b82] text-white"
-                      : isArabic(m.text)
-                        ? "rounded-bl-md bg-glass text-right text-body-text"
-                        : "rounded-bl-md bg-glass text-body-text"
-                  }`}
-                >
-                  {m.text}
-                </div>
-              )}
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-glass px-4 py-3">
-                <span className="h-2 w-2 animate-pulse-dot rounded-full bg-[#75d7cc]" style={{ animationDelay: "0s" }} />
-                <span className="h-2 w-2 animate-pulse-dot rounded-full bg-[#75d7cc]" style={{ animationDelay: "0.2s" }} />
-                <span className="h-2 w-2 animate-pulse-dot rounded-full bg-[#75d7cc]" style={{ animationDelay: "0.4s" }} />
-              </div>
-            </div>
-          )}
-          <div ref={endRef} />
+        {/* Desktop Header */}
+        <div className="hidden md:flex app-card border-b border-outline-variant px-6 py-4 items-center justify-between">
+          <div>
+            <h1 className="font-[family-name:var(--font-heading)] text-headline-md text-on-background font-semibold">
+              AI Advisor
+            </h1>
+            <p className="text-label-sm text-on-surface-variant">
+              Ask about courses, prerequisites, or GPA projections
+            </p>
+          </div>
         </div>
 
+        {/* Quick Topics */}
         {messages.length <= 1 && (
-          <div className="flex flex-wrap gap-2 px-6 pb-3">
+          <div className="flex gap-3 px-6 py-4 overflow-x-auto no-scrollbar shrink-0">
             {QUICK_ACTIONS.map((qa) => (
               <button
                 key={qa.label}
-                onClick={() => {
-                  setInput(qa.msg);
-                }}
-                className="rounded-full border border-white/10 bg-glass px-3 py-1.5 text-xs text-caption transition-all hover:border-[#75d7cc]/30 hover:bg-[#75d7cc]/10 hover:text-[#75d7cc]"
+                onClick={() => setInput(qa.msg)}
+                className="whitespace-nowrap px-4 py-2 rounded-full border border-outline-variant bg-surface-container text-label-sm font-semibold text-on-surface hover:bg-surface-container hover:border-outline-variant transition-all flex items-center gap-2 backdrop-blur-md"
               >
+                <span className="material-symbols-outlined text-sm">{qa.icon}</span>
                 {qa.label}
               </button>
             ))}
           </div>
         )}
 
-        <div className="border-t border-white/5 p-4">
-          {fileError && (
-            <p className="mb-2 text-xs text-danger">{fileError}</p>
-          )}
-          {selectedFile && (
-            <div className="mb-2 flex items-center gap-2 rounded-lg bg-glass px-3 py-1.5 text-xs text-body-text">
-              <span>📎 {selectedFile.name}</span>
-              <button
-                onClick={() => setSelectedFile(null)}
-                className="text-caption hover:text-heading"
-                aria-label="Remove image"
-              >
-                ✕
-              </button>
+        {/* Chat Canvas */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 w-full max-w-4xl mx-auto pb-32">
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              className={`animate-fade-in-up flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              {m.role === "assistant" && isCourseIntent(m.data) ? (
+                <CourseIntentCard data={m.data} />
+              ) : m.role === "user" ? (
+                <div
+                  dir={dirFor(m.text)}
+                  className="max-w-[80%] chat-bubble-user px-5 py-3 rounded-2xl rounded-tr-sm text-on-surface text-body-md leading-relaxed"
+                >
+                  {m.text}
+                </div>
+              ) : (
+                <div className="flex gap-4 max-w-[85%] self-start">
+                  <div className="w-8 h-8 rounded shrink-0 flex items-center justify-center bg-surface-container border border-outline-variant mt-1">
+                    <span className="material-symbols-outlined text-primary text-lg">smart_toy</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div
+                      dir={dirFor(m.text)}
+                      className={`whitespace-pre-wrap text-body-md text-on-surface leading-relaxed ${
+                        isArabic(m.text) ? "text-right" : ""
+                      }`}
+                    >
+                      {m.text}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div className="flex gap-4 max-w-[85%] self-start items-center mt-2 opacity-70">
+              <div className="w-6 h-6 rounded flex items-center justify-center bg-transparent mt-1">
+                <span className="material-symbols-outlined text-primary text-lg thinking-indicator">change_history</span>
+              </div>
+              <span className="text-label-sm text-on-surface-variant italic">Analyzing prerequisites...</span>
             </div>
           )}
-          <form onSubmit={send} className="flex items-end gap-2">
-            <label className="cursor-pointer rounded-xl border border-white/10 bg-glass p-2.5 text-caption transition-colors hover:border-[#75d7cc]/30 hover:bg-[#75d7cc]/10 hover:text-[#75d7cc]">
-              <IconImage className="h-5 w-5" />
-              <span className="sr-only">Attach transcript image</span>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                className="hidden"
-                onChange={(e) => pickFile(e.target.files?.[0])}
+          <div ref={endRef} />
+        </div>
+
+        {/* Composer */}
+        <div className="absolute bottom-0 left-0 w-full p-4 md:p-6 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/90 to-transparent z-30 pt-12">
+          <div className="max-w-4xl mx-auto relative">
+            {fileError && (
+              <p className="mb-2 text-xs text-error">{fileError}</p>
+            )}
+            {selectedFile && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg app-card px-3 py-1.5 text-xs text-on-surface">
+                <span>📎 {selectedFile.name}</span>
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="text-on-surface-variant hover:text-on-surface"
+                  aria-label="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <form onSubmit={send} className="app-card rounded-full flex items-end p-2 pl-6 focus-within:border-primary/50 focus-within:bg-surface-container transition-all duration-300 group shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Ask about courses, requirements, or policy..."
+                rows={1}
+                className="w-full bg-transparent border-none text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 resize-none max-h-32 min-h-[44px] py-3 text-body-md"
               />
-            </label>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Type a message or ask about your courses…"
-              rows={1}
-              className="max-h-40 flex-1 resize-none rounded-xl border border-white/10 bg-glass-input px-4 py-2.5 text-sm text-heading placeholder-caption focus:border-[#75d7cc] focus:outline-none focus:ring-0"
-            />
-            <button
-              type="submit"
-              disabled={loading || (!input.trim() && !selectedFile)}
-              className="primary-gradient-btn rounded-xl px-4 py-2.5"
-            >
-              <IconSend className="h-5 w-5" />
-            </button>
-          </form>
+              <div className="flex items-center gap-2 pb-1 shrink-0">
+                <label className="cursor-pointer p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container flex items-center justify-center">
+                  <span className="material-symbols-outlined">attach_file</span>
+                  <span className="sr-only">Attach transcript image</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    className="hidden"
+                    onChange={(e) => pickFile(e.target.files?.[0])}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={loading || (!input.trim() && !selectedFile)}
+                  className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-on-primary hover:shadow-[inset_0_0_10px_rgba(255,255,255,0.5)] transition-all duration-200 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined">arrow_upward</span>
+                </button>
+              </div>
+            </form>
+            <div className="text-center mt-2">
+              <p className="text-[11px] text-outline-variant">AI Advisor can make mistakes. Verify important academic decisions with your human counselor.</p>
+            </div>
+          </div>
         </div>
       </div>
     </PageShell>
@@ -255,51 +302,53 @@ export default function ChatPage() {
 
 function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
   return (
-    <div className="glass-card max-w-[85%] p-4">
+    <div className="app-card max-w-[90%] p-4 rounded-xl flex flex-col gap-3">
       <IntentBadge intent={data.intent} />
       {data.clarify && data.response && (
         <p
           dir={dirFor(data.response)}
-          className="whitespace-pre-wrap text-body-text"
+          className="whitespace-pre-wrap text-body-md text-on-surface leading-relaxed"
         >
           {data.response}
         </p>
       )}
       {data.recommended_selection.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-caption">
+          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
             Recommended ({data.recommended_total_hours} hrs)
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2 mt-2">
             {data.recommended_selection.map((c) => (
-              <span
-                key={c.code}
-                className="rounded-full border border-[#b5c4ff]/20 bg-[#b5c4ff]/10 px-2.5 py-1 text-xs font-medium text-[#b5c4ff]"
-              >
-                {c.code} · {c.credit_hours}h
-              </span>
+              <div key={c.code} className="app-card p-3 rounded-xl flex flex-col gap-2">
+                <span className="text-label-sm text-secondary bg-secondary/15 px-2 py-0.5 rounded-full w-fit">
+                  {c.code}
+                </span>
+                <span className="text-label-sm text-on-surface-variant">
+                  {c.credit_hours}h
+                </span>
+              </div>
             ))}
           </div>
         </div>
       )}
       {data.eligible_courses.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-caption">
+          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
             Eligible
           </p>
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {data.eligible_courses.map((c) => (
               <li
                 key={c.code}
                 dir={dirFor(c.name ?? "")}
                 className="flex items-center justify-between gap-2"
               >
-                <span className="flex items-center gap-1.5 font-medium text-heading">
+                <span className="flex items-center gap-1.5 font-medium text-on-surface">
                   <span className="status-dot green" />
                   {c.code}
                 </span>
-                <span className="truncate text-body-text">{c.name}</span>
-                <span className="text-xs text-caption">{c.credit_hours}h</span>
+                <span className="truncate text-on-surface-variant">{c.name}</span>
+                <span className="text-xs text-on-surface-variant">{c.credit_hours}h</span>
               </li>
             ))}
           </ul>
@@ -307,17 +356,17 @@ function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
       )}
       {data.ineligible_courses.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-caption">
+          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
             Blocked by prerequisites
           </p>
           <ul className="space-y-1">
             {data.ineligible_courses.map((c) => (
-              <li key={c.code} className="text-body-text">
-                <span className="flex items-center gap-1.5 font-medium text-heading">
+              <li key={c.code} className="text-on-surface-variant">
+                <span className="flex items-center gap-1.5 font-medium text-on-surface">
                   <span className="status-dot red" />
                   {c.code}
                 </span>
-                <span className="pl-3 text-caption"> {c.name ?? ""}</span>
+                <span className="pl-3 text-on-surface-variant"> {c.name ?? ""}</span>
                 <span className="block pl-3 text-xs text-warning">
                   needs: {c.missing_prerequisites.join(", ")}
                 </span>
@@ -332,14 +381,14 @@ function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
         </p>
       )}
       {data.gpa_projection !== undefined && (
-        <div className="mt-2 rounded-xl bg-glass-input p-3 text-xs text-body-text">
+        <div className="mt-2 rounded-xl bg-surface-container-highest/50 p-3 text-xs text-on-surface">
           <pre className="whitespace-pre-wrap">
             {JSON.stringify(data.gpa_projection, null, 2)}
           </pre>
         </div>
       )}
       {data.prerequisite_info !== undefined && (
-        <div className="mt-2 rounded-xl bg-glass-input p-3 text-xs text-body-text">
+        <div className="mt-2 rounded-xl bg-surface-container-highest/50 p-3 text-xs text-on-surface">
           <pre className="whitespace-pre-wrap">
             {JSON.stringify(data.prerequisite_info, null, 2)}
           </pre>

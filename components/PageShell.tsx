@@ -8,7 +8,9 @@ export default function PageShell({ children }: { children: ReactNode }) {
   return (
     <RequireAuth>
       <SidebarNav />
-      <main className="ml-[260px] min-h-screen p-6 lg:p-8">{children}</main>
+      <main className="md:ml-[240px] min-h-screen">
+        <div className="pt-14 md:pt-0">{children}</div>
+      </main>
     </RequireAuth>
   );
 }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { get } from "@/lib/api";
 import type { GraduationPlan } from "@/lib/types";
-import { IconClose } from "@/components/Icons";
 
 const TERMINATION_LABELS: Record<string, string> = {
   requirement_reached: "Graduation requirements reached",
@@ -35,39 +34,39 @@ export default function GraduationModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Graduation plan"
     >
       <div
-        className="glass-modal my-8 w-full max-w-4xl p-6"
+        className="bg-surface rounded-xl p-6 my-8 w-full max-w-4xl border border-outline-variant shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-[family-name:var(--font-heading)] text-xl font-bold text-heading">
+          <h2 className="font-[family-name:var(--font-heading)] text-[24px] font-medium text-on-surface">
             Graduation Plan
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-caption transition-colors hover:bg-glass-hover hover:text-heading"
+            className="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
             aria-label="Close"
           >
-            <IconClose className="h-5 w-5" />
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-caption">
-            <div className="h-4 w-4 animate-pulse rounded-full bg-[#75d7cc]" />
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-on-surface-variant">
+            <div className="h-4 w-4 animate-pulse rounded-full bg-primary" />
             Loading your plan…
           </div>
         )}
 
         {error && !loading && (
           <div className="py-10 text-center">
-            <p className="text-sm text-danger">{error}</p>
+            <p className="text-sm text-error">{error}</p>
             <button
               onClick={load}
               className="primary-gradient-btn mt-4"
@@ -84,10 +83,10 @@ export default function GraduationModal({
                 <p className="text-lg font-medium text-warning">
                   Add your completed courses first
                 </p>
-                <p className="mt-2 text-sm text-body-text">
+                <p className="mt-2 text-sm text-on-surface-variant">
                   Your graduation plan needs your course history to be built.
                   Head to the{" "}
-                  <span className="font-semibold text-heading">Transcript</span> tab and add
+                  <span className="font-semibold text-on-surface">Transcript</span> tab and add
                   your completed courses (or upload a transcript image), then
                   come back to see your plan.
                 </p>
@@ -97,9 +96,9 @@ export default function GraduationModal({
                 {plan.graduation_status.graduation_ready ? (
                   <div className="mb-4 rounded-xl border border-success/20 bg-success/10 p-4">
                     <p className="text-sm font-semibold text-success">
-                      🎉 You meet all graduation requirements.
+                      You meet all graduation requirements.
                     </p>
-                    <p className="mt-1 text-sm text-body-text">
+                    <p className="mt-1 text-sm text-on-surface-variant">
                       {plan.graduation_status.progress.total_hours} /{" "}
                       {plan.target_hours} credit hours at GPA{" "}
                       {plan.graduation_status.progress.gpa.toFixed(2)}.
@@ -116,7 +115,7 @@ export default function GraduationModal({
                       .
                     </p>
                     {plan.current_completed_hours === 0 && (
-                      <p className="mt-1 text-sm text-body-text">
+                      <p className="mt-1 text-sm text-on-surface-variant">
                         This plan assumes you start from scratch. Add your
                         completed courses in the Transcript tab to personalize it.
                       </p>
@@ -138,7 +137,7 @@ export default function GraduationModal({
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-caption">
+                  <p className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant">
                     Planned load per term: {plan.load_rule.min_hours}–{plan.load_rule.max_hours}{" "}
                     hours (GPA {plan.load_rule.based_on_gpa})
                   </p>
@@ -148,13 +147,13 @@ export default function GraduationModal({
                   {plan.terms.map((term) => (
                     <div
                       key={term.term}
-                      className="glass-card !p-4"
+                      className="app-card rounded-xl p-4"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-heading">
+                        <span className="text-sm font-semibold text-on-surface">
                           Term {term.term}
                         </span>
-                        <span className="rounded-full bg-glass px-2 py-0.5 text-xs font-medium text-body-text">
+                        <span className="rounded-full bg-surface-container px-2 py-0.5 text-[13px] font-semibold text-on-surface-variant">
                           {term.term_total_hours} hrs
                         </span>
                       </div>
@@ -164,12 +163,12 @@ export default function GraduationModal({
                             key={c.code}
                             className="flex items-center justify-between gap-2 text-sm"
                           >
-                            <span className="flex items-center gap-1.5 font-medium text-body-text">
-                              <span className="status-dot teal" />
+                            <span className="flex items-center gap-1.5 font-medium text-on-surface-variant">
+                              <span className="status-dot green" />
                               {c.code}
                             </span>
-                            <span className="truncate text-caption">{c.name}</span>
-                            <span className="text-xs text-caption">
+                            <span className="truncate text-on-surface-variant">{c.name}</span>
+                            <span className="text-[13px] text-on-surface-variant">
                               {c.credit_hours}h
                             </span>
                           </li>
@@ -179,7 +178,7 @@ export default function GraduationModal({
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs text-caption">
+                <p className="mt-4 text-[13px] text-on-surface-variant">
                   {TERMINATION_LABELS[plan.termination_reason] ??
                     plan.termination_reason}
                 </p>
@@ -194,11 +193,11 @@ export default function GraduationModal({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass-card !p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-caption">
+    <div className="app-card rounded-xl p-3">
+      <p className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant">
         {label}
       </p>
-      <p className="mt-1 font-[family-name:var(--font-heading)] text-xl font-bold text-heading">
+      <p className="mt-1 font-[family-name:var(--font-heading)] text-xl font-medium text-on-surface">
         {value}
       </p>
     </div>
