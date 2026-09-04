@@ -67,7 +67,7 @@ export default function LoginPage() {
       {/* Language + Theme toggles */}
       <div className="fixed top-4 end-4 z-20 flex items-center gap-2">
         <div
-          className="flex items-center rounded-full border border-glass-border bg-glass p-0.5 shadow-sm backdrop-blur-md"
+          className="flex items-center rounded-full border border-outline-variant bg-surface-container p-0.5 shadow-sm"
           role="group"
           aria-label="Language"
         >
@@ -92,7 +92,7 @@ export default function LoginPage() {
           onClick={toggleTheme}
           aria-label={t("theme.toggle")}
           title={t("theme.toggle")}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-glass text-primary shadow-sm backdrop-blur-md transition-colors hover:bg-glass-hover"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-primary shadow-sm transition-colors hover:bg-surface-container-high"
         >
           <span className="material-symbols-outlined text-base">
             {theme === "dark" ? "light_mode" : "dark_mode"}
@@ -102,7 +102,7 @@ export default function LoginPage() {
 
       {/* White card */}
       <div className="w-full max-w-[420px] animate-fade-in-up">
-        <div className="rounded-[20px] border border-[var(--c-outline-variant)] bg-white p-7 shadow-[0_8px_40px_-8px_rgba(26,39,68,0.12)] sm:p-9">
+        <div className="rounded-[20px] border border-[var(--c-outline-variant)] bg-surface p-7 shadow-[0_8px_40px_-8px_rgba(26,39,68,0.12)] sm:p-9">
           {/* Logo */}
           <div className="mb-6 flex flex-col items-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center">
@@ -148,7 +148,7 @@ export default function LoginPage() {
                   person
                 </span>
                 <input
-                  className="w-full rounded-lg border border-[var(--c-outline-variant)] bg-white py-3 ps-10 pe-4 text-sm text-[var(--c-on-surface)] placeholder:text-[var(--c-outline)] focus:border-[var(--c-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
+                  className="w-full rounded-lg border border-[var(--c-outline-variant)] bg-surface py-3 ps-10 pe-4 text-sm text-[var(--c-on-surface)] placeholder:text-[var(--c-outline)] focus:border-[var(--c-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
                   id="student_id"
                   name="username"
                   placeholder={t("login.studentIdPlaceholder")}
@@ -183,7 +183,7 @@ export default function LoginPage() {
                   lock
                 </span>
                 <input
-                  className="w-full rounded-lg border border-[var(--c-outline-variant)] bg-white py-3 ps-10 pe-12 text-sm text-[var(--c-on-surface)] placeholder:text-[var(--c-outline)] focus:border-[var(--c-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
+                  className="w-full rounded-lg border border-[var(--c-outline-variant)] bg-surface py-3 ps-10 pe-12 text-sm text-[var(--c-on-surface)] placeholder:text-[var(--c-outline)] focus:border-[var(--c-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--c-primary)]"
                   id="password"
                   name="password"
                   placeholder="••••••••"
