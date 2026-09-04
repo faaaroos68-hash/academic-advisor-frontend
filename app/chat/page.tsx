@@ -45,7 +45,7 @@ function IntentBadge({ intent }: { intent: string }) {
     image_query: "Image",
   };
   return (
-    <span className="mb-2 inline-block rounded-full border border-[#75d7cc]/20 bg-[#75d7cc]/10 px-2.5 py-0.5 text-xs font-medium text-[#75d7cc]">
+    <span className="mb-2 inline-block rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
       {labels[intent] ?? intent}
     </span>
   );
@@ -188,7 +188,7 @@ export default function ChatPage() {
               <button
                 key={qa.label}
                 onClick={() => setInput(qa.msg)}
-                className="whitespace-nowrap px-4 py-2 rounded-full border border-outline-variant bg-surface-container text-label-sm font-semibold text-on-surface hover:bg-surface-container hover:border-outline-variant transition-all flex items-center gap-2 backdrop-blur-md"
+                className="whitespace-nowrap px-4 py-2 rounded-full border border-outline-variant bg-surface-container text-label-sm font-semibold text-on-surface hover:bg-surface-container hover:border-outline-variant transition-all flex items-center gap-2"
               >
                 <span className="material-symbols-outlined text-sm">{qa.icon}</span>
                 {qa.label}
@@ -209,7 +209,7 @@ export default function ChatPage() {
               ) : m.role === "user" ? (
                 <div
                   dir={dirFor(m.text)}
-                  className="max-w-[80%] chat-bubble-user px-5 py-3 rounded-2xl rounded-tr-sm text-on-surface text-body-md leading-relaxed"
+                  className="max-w-[80%] bg-primary text-on-primary px-5 py-3 rounded-2xl rounded-tr-sm text-body-md leading-relaxed"
                 >
                   {m.text}
                 </div>

@@ -40,7 +40,7 @@ export default function SettingsPage() {
         <div className="flex flex-col md:flex-row gap-8">
           {/* Left Sidebar Nav */}
           <nav className="md:w-56 shrink-0">
-            <div className="glass-panel rounded-xl p-2">
+            <div className="app-card rounded-xl p-2">
               <ul className="space-y-1">
                 {navItems.map((item) => (
                   <li key={item.label}>
@@ -49,7 +49,7 @@ export default function SettingsPage() {
                       className={`block px-4 py-2.5 rounded-lg text-label-sm font-[family-name:var(--font-heading)] transition-colors ${
                         item.active
                           ? "bg-primary/10 text-primary"
-                          : "text-on-surface-variant hover:bg-white/5 hover:text-on-surface"
+                          : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
                       }`}
                     >
                       {item.label}
@@ -63,7 +63,7 @@ export default function SettingsPage() {
           {/* Right Content Area */}
           <div className="flex-1 space-y-6">
             {/* Appearance */}
-            <section className="glass-panel rounded-xl p-6">
+            <section className="app-card rounded-xl p-6">
               <h2 className="text-headline-md font-[family-name:var(--font-heading)] text-on-surface mb-5">
                 Appearance
               </h2>
@@ -83,12 +83,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-white/10 pt-4">
+                <div className="border-t border-outline-variant pt-4">
                   <label className="block text-label-sm text-on-surface-variant mb-2">
                     Language
                   </label>
                   <select
-                    className="glass-input w-full px-4 py-3 text-on-surface rounded-lg appearance-none"
+                    className="app-input w-full px-4 py-3 text-on-surface rounded-lg appearance-none"
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
                   >
@@ -100,7 +100,7 @@ export default function SettingsPage() {
             </section>
 
             {/* Notifications */}
-            <section className="glass-panel rounded-xl p-6">
+            <section className="app-card rounded-xl p-6">
               <h2 className="text-headline-md font-[family-name:var(--font-heading)] text-on-surface mb-5">
                 Notifications
               </h2>
@@ -119,7 +119,7 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => setEmailNotifications(!emailNotifications)}
                     className={`w-11 h-6 rounded-full relative transition-colors ${
-                      emailNotifications ? "bg-primary" : "bg-white/15"
+                      emailNotifications ? "bg-primary" : "bg-surface-container-highest"
                     }`}
                   >
                     <div
@@ -130,7 +130,7 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/10 pt-4">
+                <div className="flex items-center justify-between border-t border-outline-variant pt-4">
                   <div>
                     <p className="text-body-md text-on-surface font-medium">
                       Deadline Reminders
@@ -143,7 +143,7 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => setDeadlineReminders(!deadlineReminders)}
                     className={`w-11 h-6 rounded-full relative transition-colors ${
-                      deadlineReminders ? "bg-primary" : "bg-white/15"
+                      deadlineReminders ? "bg-primary" : "bg-surface-container-highest"
                     }`}
                   >
                     <div
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/10 pt-4">
+                <div className="flex items-center justify-between border-t border-outline-variant pt-4">
                   <div>
                     <p className="text-body-md text-on-surface font-medium">
                       Grade Updates
@@ -167,7 +167,7 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => setGradeUpdates(!gradeUpdates)}
                     className={`w-11 h-6 rounded-full relative transition-colors ${
-                      gradeUpdates ? "bg-primary" : "bg-white/15"
+                      gradeUpdates ? "bg-primary" : "bg-surface-container-highest"
                     }`}
                   >
                     <div
@@ -181,7 +181,7 @@ export default function SettingsPage() {
             </section>
 
             {/* Privacy */}
-            <section className="glass-panel rounded-xl p-6">
+            <section className="app-card rounded-xl p-6">
               <h2 className="text-headline-md font-[family-name:var(--font-heading)] text-on-surface mb-5">
                 Privacy
               </h2>
@@ -191,7 +191,7 @@ export default function SettingsPage() {
                   Profile Visibility
                 </label>
                 <select
-                  className="glass-input w-full px-4 py-3 text-on-surface rounded-lg appearance-none"
+                  className="app-input w-full px-4 py-3 text-on-surface rounded-lg appearance-none"
                   value={profileVisibility}
                   onChange={(e) => setProfileVisibility(e.target.value)}
                 >

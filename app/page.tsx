@@ -45,7 +45,7 @@ export default function LandingPage() {
       className="min-h-screen bg-background text-on-background"
     >
       {/* Header */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-glass-border bg-glass backdrop-blur-xl">
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-outline-variant bg-surface">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
@@ -74,7 +74,7 @@ export default function LandingPage() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {/* Language + Theme toggles */}
-            <div className="flex items-center rounded-full border border-glass-border bg-glass p-0.5" role="group" aria-label="Language">
+            <div className="flex items-center rounded-full border border-outline-variant bg-surface p-0.5" role="group" aria-label="Language">
               {(["en", "ar"] as const).map((l) => (
                 <button
                   key={l}
@@ -95,7 +95,7 @@ export default function LandingPage() {
               type="button"
               onClick={toggleTheme}
               aria-label={t("theme.toggle")}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-glass-border bg-glass text-on-surface-variant hover:text-on-surface hover:bg-glass-hover transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant hover:text-on-surface hover:bg-surface-hover transition-colors"
             >
               <span className="material-symbols-outlined text-base">
                 {theme === "dark" ? "light_mode" : "dark_mode"}
@@ -180,7 +180,7 @@ export default function LandingPage() {
             {FEATURES.map((f, i) => (
               <div
                 key={i}
-                className="glass-card rounded-2xl p-6 transition-all hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
+                className="app-card rounded-2xl p-6 transition-all hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1"
               >
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <span className="material-symbols-outlined text-2xl text-primary">{f.icon}</span>
@@ -200,7 +200,7 @@ export default function LandingPage() {
       {/* About Section */}
       <section id="about" className="py-20">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="glass-panel rounded-3xl p-10 md:p-16 text-center">
+          <div className="app-card rounded-3xl p-10 md:p-16 text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-primary font-[family-name:var(--font-heading)] mb-6">
               {lang === "ar" ? "عن جامعة Delta" : "About Delta University"}
             </h2>
@@ -235,7 +235,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="border-t border-glass-border py-12">
+      <footer id="contact" className="border-t border-outline-variant py-12">
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">

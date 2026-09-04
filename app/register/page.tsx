@@ -63,7 +63,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-[460px] px-container-padding">
-        <div className="glass-card rounded-xl p-6 shadow-2xl flex flex-col gap-4">
+        <div className="app-card rounded-xl p-6 shadow-2xl flex flex-col gap-4">
           {/* Header */}
           <div className="text-center mb-2">
             <span className="material-symbols-outlined text-primary text-4xl mb-1">school</span>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                 {t("register.fullName")}
               </label>
               <input
-                className="glass-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
+                className="app-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
                 id="full_name"
                 placeholder={t("register.fullNamePlaceholder")}
                 required
@@ -103,7 +103,7 @@ export default function RegisterPage() {
                 {t("register.username")}
               </label>
               <input
-                className="glass-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
+                className="app-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
                 id="username"
                 placeholder="jdoe_academic"
                 required
@@ -120,7 +120,7 @@ export default function RegisterPage() {
                 {t("register.studentId")}
               </label>
               <input
-                className="glass-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
+                className="app-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
                 id="student_id"
                 placeholder="202400123"
                 required
@@ -137,7 +137,7 @@ export default function RegisterPage() {
               </label>
               <div className="relative">
                 <select
-                  className="glass-input rounded px-4 py-2 w-full text-body-md appearance-none cursor-pointer"
+                  className="app-input rounded px-4 py-2 w-full text-body-md appearance-none cursor-pointer"
                   id="department"
                   name="department"
                   required
@@ -166,7 +166,7 @@ export default function RegisterPage() {
               </label>
               <div className="relative">
                 <select
-                  className="glass-input rounded px-4 py-2 w-full text-body-md appearance-none cursor-pointer"
+                  className="app-input rounded px-4 py-2 w-full text-body-md appearance-none cursor-pointer"
                   id="level"
                   value={form.level}
                   onChange={(e) => set("level", e.target.value)}
@@ -192,7 +192,7 @@ export default function RegisterPage() {
                 {t("register.password")}
               </label>
               <input
-                className="glass-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
+                className="app-input rounded px-4 py-2 w-full text-body-md placeholder:text-on-surface-variant/50"
                 id="password"
                 placeholder="••••••••"
                 required
