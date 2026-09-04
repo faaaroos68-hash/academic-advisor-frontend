@@ -62,7 +62,7 @@ export default function SidebarNav() {
         <button
           key={item.label}
           onClick={() => { setPlanOpen(true); onNavigate?.(); }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-colors w-full text-left"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-colors w-full rtl:text-right text-left"
         >
           <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
           <span>{item.label}</span>
@@ -160,7 +160,7 @@ export default function SidebarNav() {
   return (
     <>
       {/* Desktop sidebar */}
-      <nav className="hidden md:flex flex-col h-screen py-4 fixed left-0 top-0 w-[240px] bg-surface border-r border-outline-variant z-50">
+      <nav className="hidden md:flex flex-col h-screen py-4 fixed start-0 top-0 w-[240px] bg-surface border-s border-outline-variant z-50">
         <div className="px-4 mb-4">
           <BrandBlock />
         </div>
@@ -220,7 +220,7 @@ export default function SidebarNav() {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-          <nav className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-surface border-r border-outline-variant flex flex-col py-4 shadow-xl animate-fade-in-up">
+          <nav className="absolute inset-y-0 start-0 w-[280px] max-w-[85vw] bg-surface border-s border-outline-variant flex flex-col py-4 shadow-xl animate-fade-in-up">
             <div className="px-4 mb-4 flex items-start justify-between">
               <BrandBlock />
               <button

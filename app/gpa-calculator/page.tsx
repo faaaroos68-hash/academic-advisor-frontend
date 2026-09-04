@@ -148,7 +148,7 @@ export default function GPACalculatorPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="text-right">
+                        <td className="rtl:text-left text-right">
                           <button
                             onClick={() => removeRow(row.id)}
                             disabled={rows.length === 1}

@@ -340,7 +340,7 @@ export default function HistoryPage() {
               </button>
               <div className={`accordion-content ${openTerms.has(t) ? "open" : ""}`}>
                 <div className="px-6 pb-6">
-                  <table className="app-table w-full text-left border-collapse">
+                  <table className="app-table w-full rtl:text-right text-left border-collapse">
                     <thead>
                       <tr className="border-b border-outline-variant">
                         <th className="py-3 px-2 text-[13px] uppercase text-on-surface-variant font-medium">
@@ -475,7 +475,7 @@ export default function HistoryPage() {
                 </div>
               </div>
             </div>
-            <table className="app-table w-full text-left border-collapse mb-4">
+            <table className="app-table w-full rtl:text-right text-left border-collapse mb-4">
               <thead>
                 <tr className="border-b border-outline-variant">
                   <th className="py-2 px-2 text-[13px] uppercase text-on-surface-variant">Code</th>

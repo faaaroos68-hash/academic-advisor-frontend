@@ -57,7 +57,7 @@ export default function ProfilePage() {
                   <button
                     key={item.label}
                     onClick={() => setActiveTab(item.label)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left w-full ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors rtl:text-right text-left w-full ${
                       activeTab === item.label
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-on-surface-variant hover:bg-surface-container"
@@ -89,7 +89,7 @@ export default function ProfilePage() {
                       <span className="material-symbols-outlined text-white">photo_camera</span>
                     </div>
                   </div>
-                  <div className="flex-1 text-center md:text-left">
+                   <div className="flex-1 text-center md:rtl:text-right md:text-left">
                     <h3 className="font-[family-name:var(--font-heading)] text-headline-md text-on-surface">
                       {loading ? <span className="inline-block h-7 w-40 bg-surface-container rounded animate-pulse" /> : student?.full_name}
                     </h3>

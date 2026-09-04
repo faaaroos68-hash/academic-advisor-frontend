@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
                         style={{ width: `${(hours / maxTermHours) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[11px] text-on-surface-variant w-8 text-right shrink-0">{hours}h</span>
+                    <span className="text-[11px] text-on-surface-variant w-8 rtl:text-left text-right shrink-0">{hours}h</span>
                   </div>
                 ))}
               </div>
