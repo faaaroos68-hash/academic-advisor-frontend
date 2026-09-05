@@ -301,6 +301,20 @@ export default function ChatPage() {
 }
 
 function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
+  const ga = data.gpa_analysis as
+    | {
+        current_gpa?: number;
+        total_hours?: number;
+        courses_completed?: number;
+        suggestions?: string[];
+        safety_note?: string | null;
+        course_details?: { code: string; grade: string; points: number | null; passing: boolean }[];
+      }
+    | undefined;
+  const pi = data.prerequisite_info as
+    | { code: string; name: string; has_all_prerequisites: boolean; missing_prerequisites: { code: string; name: string }[] }[]
+    | undefined;
+
   return (
     <div className="app-card max-w-[90%] p-4 rounded-xl flex flex-col gap-3">
       <IntentBadge intent={data.intent} />
@@ -312,87 +326,151 @@ function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
           {data.response}
         </p>
       )}
-      {data.recommended_selection.length > 0 && (
-        <div className="mb-3">
-          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-            Recommended ({data.recommended_total_hours} hrs)
-          </p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {data.recommended_selection.map((c) => (
-              <div key={c.code} className="app-card p-3 rounded-xl flex flex-col gap-2">
-                <span className="text-label-sm text-secondary bg-secondary/15 px-2 py-0.5 rounded-full w-fit">
-                  {c.code}
-                </span>
-                <span className="text-label-sm text-on-surface-variant">
-                  {c.credit_hours}h
-                </span>
-              </div>
-            ))}
+
+      {data.intent === "raise_gpa" && ga && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-3 text-label-sm text-on-surface">
+            <span>GPA: <strong>{ga.current_gpa}</strong></span>
+            <span>Hours: <strong>{ga.total_hours}</strong></span>
+            <span>Courses: <strong>{ga.courses_completed}</strong></span>
           </div>
+          {ga.safety_note && (
+            <p className="rounded-xl border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {ga.safety_note}
+            </p>
+          )}
+          {ga.suggestions && ga.suggestions.length > 0 && (
+            <ul className="list-disc ps-5 text-body-sm text-on-surface space-y-1">
+              {ga.suggestions.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          )}
+          {ga.course_details && ga.course_details.length > 0 && (
+            <div>
+              <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
+                Course history
+              </p>
+              <ul className="space-y-1">
+                {ga.course_details.map((c) => (
+                  <li key={c.code} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex items-center gap-1.5 font-medium text-on-surface">
+                      <span className={`status-dot ${c.passing ? "green" : "red"}`} />
+                      {c.code}
+                    </span>
+                    <span className="text-on-surface-variant">{c.grade}</span>
+                    <span className="text-xs text-on-surface-variant">{c.points ?? "—"} pts</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
-      {data.eligible_courses.length > 0 && (
-        <div className="mb-3">
-          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-            Eligible
-          </p>
-          <ul className="space-y-1">
-            {data.eligible_courses.map((c) => (
-              <li
-                key={c.code}
-                dir={dirFor(c.name ?? "")}
-                className="flex items-center justify-between gap-2"
-              >
-                <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                  <span className="status-dot green" />
-                  {c.code}
-                </span>
-                <span className="truncate text-on-surface-variant">{c.name}</span>
-                <span className="text-xs text-on-surface-variant">{c.credit_hours}h</span>
-              </li>
-            ))}
-          </ul>
+
+      {data.intent === "prerequisite_query" && pi && pi.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {pi.map((info) => (
+            <div key={info.code} className="rounded-xl border border-outline-variant p-3">
+              <p className="font-medium text-on-surface">
+                {info.code} — {info.name}
+              </p>
+              {info.has_all_prerequisites ? (
+                <p className="text-xs text-success mt-1">Prerequisites met</p>
+              ) : (
+                <ul className="mt-1 space-y-0.5">
+                  {info.missing_prerequisites.map((m) => (
+                    <li key={m.code} className="text-xs text-warning">
+                      Missing: {m.code} — {m.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
         </div>
       )}
-      {data.ineligible_courses.length > 0 && (
-        <div className="mb-3">
-          <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-            Blocked by prerequisites
-          </p>
-          <ul className="space-y-1">
-            {data.ineligible_courses.map((c) => (
-              <li key={c.code} className="text-on-surface-variant">
-                <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                  <span className="status-dot red" />
-                  {c.code}
-                </span>
-                <span className="pl-3 text-on-surface-variant"> {c.name ?? ""}</span>
-                <span className="block pl-3 text-xs text-warning">
-                  needs: {c.missing_prerequisites.join(", ")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {data.notes && data.notes !== "ok" && (
-        <p className="mt-2 rounded-xl border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
-          {data.notes}
-        </p>
-      )}
-      {data.gpa_projection !== undefined && (
-        <div className="mt-2 rounded-xl bg-surface-container-highest/50 p-3 text-xs text-on-surface">
+
+      {data.intent === "gpa_projection" && data.gpa_projection !== undefined && (
+        <div className="rounded-xl bg-surface-container-highest/50 p-3 text-xs text-on-surface">
           <pre className="whitespace-pre-wrap">
             {JSON.stringify(data.gpa_projection, null, 2)}
           </pre>
         </div>
       )}
-      {data.prerequisite_info !== undefined && (
-        <div className="mt-2 rounded-xl bg-surface-container-highest/50 p-3 text-xs text-on-surface">
-          <pre className="whitespace-pre-wrap">
-            {JSON.stringify(data.prerequisite_info, null, 2)}
-          </pre>
-        </div>
+
+      {data.intent === "eligibility" && (
+        <>
+          {data.recommended_selection.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
+                Recommended ({data.recommended_total_hours} hrs)
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {data.recommended_selection.map((c) => (
+                  <div key={c.code} className="app-card p-3 rounded-xl flex flex-col gap-2">
+                    <span className="text-label-sm text-secondary bg-secondary/15 px-2 py-0.5 rounded-full w-fit">
+                      {c.code}
+                    </span>
+                    <span className="text-label-sm text-on-surface-variant">
+                      {c.credit_hours}h
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.eligible_courses.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
+                Eligible
+              </p>
+              <ul className="space-y-1">
+                {data.eligible_courses.map((c) => (
+                  <li
+                    key={c.code}
+                    dir={dirFor(c.name ?? "")}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="flex items-center gap-1.5 font-medium text-on-surface">
+                      <span className="status-dot green" />
+                      {c.code}
+                    </span>
+                    <span className="truncate text-on-surface-variant">{c.name}</span>
+                    <span className="text-xs text-on-surface-variant">{c.credit_hours}h</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {data.ineligible_courses.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-1 text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">
+                Blocked by prerequisites
+              </p>
+              <ul className="space-y-1">
+                {data.ineligible_courses.map((c) => (
+                  <li key={c.code} className="text-on-surface-variant">
+                    <span className="flex items-center gap-1.5 font-medium text-on-surface">
+                      <span className="status-dot red" />
+                      {c.code}
+                    </span>
+                    <span className="pl-3 text-on-surface-variant"> {c.name ?? ""}</span>
+                    <span className="block pl-3 text-xs text-warning">
+                      needs: {c.missing_prerequisites.join(", ")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {data.notes && data.notes !== "ok" && (
+        <p className="mt-2 rounded-xl border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {data.notes}
+        </p>
       )}
     </div>
   );
