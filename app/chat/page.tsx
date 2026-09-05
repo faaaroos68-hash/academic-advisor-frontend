@@ -308,7 +308,7 @@ function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
         courses_completed?: number;
         suggestions?: string[];
         safety_note?: string | null;
-        course_details?: { code: string; grade: string; points: number | null; passing: boolean }[];
+        course_details?: { code: string; grade: string; points: number | null; passing: boolean; semester_taken?: string }[];
       }
     | undefined;
   const pi = data.prerequisite_info as
@@ -353,13 +353,14 @@ function CourseIntentCard({ data }: { data: CourseIntentResponse }) {
               </p>
               <ul className="space-y-1">
                 {ga.course_details.map((c) => (
-                  <li key={c.code} className="flex items-center justify-between gap-2 text-sm">
+                  <li key={`${c.code}-${c.semester_taken ?? ""}-${c.grade}`} className="flex items-center justify-between gap-2 text-sm">
                     <span className="flex items-center gap-1.5 font-medium text-on-surface">
                       <span className={`status-dot ${c.passing ? "green" : "red"}`} />
                       {c.code}
                     </span>
                     <span className="text-on-surface-variant">{c.grade}</span>
                     <span className="text-xs text-on-surface-variant">{c.points ?? "—"} pts</span>
+                    {c.semester_taken && <span className="text-xs text-on-surface-variant">{c.semester_taken}</span>}
                   </li>
                 ))}
               </ul>
